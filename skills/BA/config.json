@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "description": "Generate a detailed requirement document for the application building including the cost details",
+  "type": "completion",
+  "completion": {
+    "max_tokens": 100000,
+    "temperature": 0.7,
+    "top_p": 0,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "input": {
+    "parameters": [
+      {
+        "name": " BA Input Task",
+        "description": "Speak to the customer and Gather the correct customer requirements",
+        "defaultValue": ""
+      },
+      {
+        "name": "BA Update Task",
+        "description": "Discuss with PO and SE, prepare the roadmap and cost details, update the documents",
+        "defaultValue": ""
+      }
+    ]
+  }
+}

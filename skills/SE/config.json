@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "description": "Create a web app using HTML and JavaScript by taking into consideration all the requirements provided by the Business Analyst. Ensure that all requested features are implemented and deliver the code to the Product Owner for review. Seek clarifications from the Business Analyst as needed.",
+  "type": "completion",
+  "completion": {
+    "max_tokens": 100000,
+    "temperature": 0.7,
+    "top_p": 0,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "input": {
+    "parameters": [
+      {
+        "name": "App Requirements",
+        "description": "A detailed list of features and requirements gathered by the Business Analyst",
+        "defaultValue": ""
+      },
+      {
+        "name": "Clarification Questions",
+        "description": "Any questions for the Business Analyst if requirements are unclear",
+        "defaultValue": ""
+      }
+    ]
+  }
+}
