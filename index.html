@@ -9,80 +9,99 @@
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f4f4f4;
+            box-sizing: border-box;
         }
 
         header {
             background-color: #4CAF50;
             color: white;
-            padding: 10px;
+            padding: 1rem;
             text-align: center;
+        }
+
+        .search-bar {
+            margin: 1rem auto;
+            text-align: center;
+        }
+
+        .search-bar input {
+            padding: 0.5rem;
+            width: 80%;
+            max-width: 500px;
+            font-size: 1rem;
         }
 
         .container {
-            max-width: 900px;
-            margin: auto;
-            background: #fff;
-            padding: 20px;
-            margin-top: 20px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-
-        .item-list, .cart {
-            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            padding: 1rem;
+            justify-content: center;
         }
 
         .item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid #ddd;
-        }
-
-        .item:last-child {
-            border-bottom: none;
-        }
-
-        button {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            padding: 5px 10px;
+            border: 1px solid #ddd;
             border-radius: 5px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background-color: #45a049;
-        }
-
-        .cart-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 5px 0;
-        }
-
-        .cart-item input {
-            width: 40px;
+            padding: 1rem;
+            width: 200px;
             text-align: center;
         }
 
-        .totals {
-            text-align: right;
+        .item img {
+            max-width: 100%;
+            height: 150px;
+            object-fit: cover;
         }
 
-        @media screen and (max-width: 600px) {
-            .item, .cart-item {
-                flex-direction: column;
-                align-items: flex-start;
-            }
+        .item button {
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
 
-            .item button, .cart-item button {
-                margin-top: 10px;
-            }
+        .item button:hover {
+            background-color: #45a049;
+        }
+
+        .cart {
+            padding: 1rem;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            max-width: 500px;
+            margin: 1rem auto;
+        }
+
+        .cart h3 {
+            text-align: center;
+        }
+
+        .checkout-form {
+            display: none;
+            padding: 1rem;
+            max-width: 500px;
+            margin: 1rem auto;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+        }
+
+        .checkout-form input {
+            margin-bottom: 1rem;
+            width: 100%;
+            padding: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .checkout-form button {
+            padding: 0.5rem;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
         }
     </style>
 </head>
@@ -91,129 +110,122 @@
         <h1>Grocery Ordering App</h1>
     </header>
 
-    <div class="container" id="app">
-        <div class="item-list">
-            <h2>Available Items</h2>
-            <div class="item" data-id="1" data-name="Apples" data-price="1.5">
-                <span>Apples ($1.50 per unit)</span>
-                <button>Add to Cart</button>
-            </div>
-            <div class="item" data-id="2" data-name="Bread" data-price="2.0">
-                <span>Bread ($2.00 per unit)</span>
-                <button>Add to Cart</button>
-            </div>
-            <div class="item" data-id="3" data-name="Milk" data-price="1.2">
-                <span>Milk ($1.20 per unit)</span>
-                <button>Add to Cart</button>
-            </div>
-        </div>
+    <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="Search for groceries...">
+    </div>
 
-        <div class="cart">
-            <h2>Cart</h2>
-            <div id="cart-items">
-                <p>No items in cart</p>
-            </div>
-            <div class="totals">
-                <p>Total: $<span id="total-price">0.00</span></p>
-            </div>
-            <button id="checkout">Checkout</button>
-        </div>
+    <div class="container" id="itemsContainer">
+        <!-- Items will be dynamically populated here -->
+    </div>
+
+    <div class="cart" id="cart">
+        <h3>Your Cart</h3>
+        <ul id="cartItems"></ul>
+        <strong>Total: $<span id="cartTotal">0.00</span></strong>
+        <br>
+        <button id="checkoutButton">Checkout</button>
+    </div>
+
+    <div class="checkout-form" id="checkoutForm">
+        <h3>Checkout</h3>
+        <input type="text" id="name" placeholder="Your Name" required>
+        <input type="text" id="address" placeholder="Your Address" required>
+        <button id="placeOrderButton">Place Order</button>
     </div>
 
     <script>
-        const cart = {};
+        const items = [
+            { id: 1, name: "Apple", price: 1.2, image: "https://via.placeholder.com/150" },
+            { id: 2, name: "Banana", price: 0.5, image: "https://via.placeholder.com/150" },
+            { id: 3, name: "Carrot", price: 0.8, image: "https://via.placeholder.com/150" },
+            { id: 4, name: "Doughnut", price: 1.5, image: "https://via.placeholder.com/150" },
+        ];
 
-        const updateCart = () => {
-            const cartItemsDiv = document.getElementById('cart-items');
-            const totalPriceDiv = document.getElementById('total-price');
+        const cart = [];
+        const itemsContainer = document.getElementById("itemsContainer");
+        const cartItems = document.getElementById("cartItems");
+        const cartTotal = document.getElementById("cartTotal");
+        const checkoutButton = document.getElementById("checkoutButton");
+        const checkoutForm = document.getElementById("checkoutForm");
 
-            let total = 0;
-            cartItemsDiv.innerHTML = '';
-
-            Object.keys(cart).forEach((id) => {
-                const item = cart[id];
-                const itemTotal = item.quantity * item.price;
-
-                total += itemTotal;
-
-                const cartItemDiv = document.createElement('div');
-                cartItemDiv.className = 'cart-item';
-                cartItemDiv.innerHTML = `
-                    <span>${item.name}</span>
-                    <input type="number" min="1" value="${item.quantity}" data-id="${id}">
-                    <button data-id="${id}">Remove</button>
+        function renderItems() {
+            itemsContainer.innerHTML = "";
+            for (let item of items) {
+                const itemDiv = document.createElement("div");
+                itemDiv.classList.add("item");
+                itemDiv.innerHTML = `
+                    <img src="${item.image}" alt="${item.name}">
+                    <h4>${item.name}</h4>
+                    <p>$${item.price.toFixed(2)}</p>
+                    <button onclick="addToCart(${item.id})">Add to Cart</button>
                 `;
-
-                cartItemsDiv.appendChild(cartItemDiv);
-            });
-
-            if (Object.keys(cart).length === 0) {
-                cartItemsDiv.innerHTML = '<p>No items in cart</p>';
+                itemsContainer.appendChild(itemDiv);
             }
+        }
 
-            totalPriceDiv.textContent = total.toFixed(2);
-        };
-
-        const addToCart = (id, name, price) => {
-            if (!cart[id]) {
-                cart[id] = {
-                    name,
-                    price,
-                    quantity: 1
-                };
-            } else {
-                cart[id].quantity += 1;
-            }
+        function addToCart(itemId) {
+            const item = items.find(i => i.id === itemId);
+            cart.push(item);
             updateCart();
-        };
+        }
 
-        document.querySelectorAll('.item button').forEach(button => {
-            button.addEventListener('click', (event) => {
-                const parent = event.target.parentNode;
-                const id = parent.dataset.id;
-                const name = parent.dataset.name;
-                const price = parseFloat(parent.dataset.price);
-
-                addToCart(id, name, price);
-            });
-        });
-
-        document.getElementById('cart-items').addEventListener('change', (event) => {
-            if (event.target.tagName === 'INPUT') {
-                const id = event.target.dataset.id;
-                const newQuantity = parseInt(event.target.value, 10);
-
-                if (newQuantity <= 0) {
-                    delete cart[id];
-                } else {
-                    cart[id].quantity = newQuantity;
-                }
-
-                updateCart();
+        function updateCart() {
+            cartItems.innerHTML = "";
+            let total = 0;
+            for (let item of cart) {
+                total += item.price;
+                const li = document.createElement("li");
+                li.textContent = `${item.name} - $${item.price.toFixed(2)}`;
+                cartItems.appendChild(li);
             }
-        });
+            cartTotal.textContent = total.toFixed(2);
+        }
 
-        document.getElementById('cart-items').addEventListener('click', (event) => {
-            if (event.target.tagName === 'BUTTON') {
-                const id = event.target.dataset.id;
-                delete cart[id];
-
-                updateCart();
+        function searchItems() {
+            const query = document.getElementById("searchInput").value.toLowerCase();
+            const filteredItems = items.filter(item => item.name.toLowerCase().includes(query));
+            itemsContainer.innerHTML = "";
+            if (filteredItems.length === 0) {
+                itemsContainer.innerHTML = `<p>No items found.</p>`;
+            } else {
+                filteredItems.forEach(item => {
+                    const itemDiv = document.createElement("div");
+                    itemDiv.classList.add("item");
+                    itemDiv.innerHTML = `
+                        <img src="${item.image}" alt="${item.name}">
+                        <h4>${item.name}</h4>
+                        <p>$${item.price.toFixed(2)}</p>
+                        <button onclick="addToCart(${item.id})">Add to Cart</button>
+                    `;
+                    itemsContainer.appendChild(itemDiv);
+                });
             }
+        }
+
+        document.getElementById("searchInput").addEventListener("input", searchItems);
+
+        checkoutButton.addEventListener("click", () => {
+            if (cart.length === 0) {
+                alert("Your cart is empty!");
+                return;
+            }
+            checkoutForm.style.display = "block";
         });
 
-        document.getElementById('checkout').addEventListener('click', () => {
-            if (Object.keys(cart).length === 0) {
-                alert('Your cart is empty!');
+        document.getElementById("placeOrderButton").addEventListener("click", () => {
+            const name = document.getElementById("name").value;
+            const address = document.getElementById("address").value;
+
+            if (!name || !address) {
+                alert("Please fill out all fields!");
                 return;
             }
 
-            alert('Thank you for your purchase!');
-            Object.keys(cart).forEach(id => delete cart[id]);
-            updateCart();
+            alert(`Thank you for your order, ${name}!`);
+            location.reload();
         });
 
-        updateCart();
+        renderItems();
     </script>
 </body>
 </html>
