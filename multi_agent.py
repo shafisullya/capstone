@@ -154,6 +154,59 @@ async def on_approved_callback():
     except Exception as e:
         print(f"❌ Unexpected error during git push: {str(e)}")
 
+# --- Auto push function (called whenever index.html is generated)
+async def auto_push_to_github():
+    """Automatically push generated files to GitHub."""
+    print("🤖 Auto-pushing generated files to GitHub...")
+    try:
+        # Check if we're on Windows and use appropriate shell
+        if platform.system() == 'Windows':
+            # For Windows, try different approaches
+            try:
+                # Try with Git Bash
+                result = subprocess.run(
+                    ["bash", "./push_to_github.sh"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    cwd=os.getcwd()
+                )
+            except FileNotFoundError:
+                # Fallback to direct execution
+                result = subprocess.run(
+                    ["./push_to_github.sh"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    cwd=os.getcwd(),
+                    shell=True
+                )
+        else:
+            # For Unix/Linux systems
+            result = subprocess.run(
+                ["./push_to_github.sh"],
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=os.getcwd()
+            )
+        
+        print("✅ Auto-push to GitHub successful!")
+        if result.stdout:
+            print(result.stdout)
+            
+    except subprocess.CalledProcessError as e:
+        print("⚠️ Auto-push to GitHub failed:")
+        if e.stderr:
+            print(f"Error output: {e.stderr}")
+        if e.stdout:
+            print(f"Standard output: {e.stdout}")
+        print(f"Return code: {e.returncode}")
+        print("💡 You can manually push later using: ./push_to_github.sh")
+    except Exception as e:
+        print(f"⚠️ Unexpected error during auto-push: {str(e)}")
+        print("💡 You can manually push later using: ./push_to_github.sh")
+
 # --- Main agent system runner with proper cleanup
 async def run_multi_agent(input_text: str):
     if not input_text.strip():
