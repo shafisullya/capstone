@@ -1,0 +1,7 @@
+Role: AuthorRole.ASSISTANT
+Content: To clarify the requirements, please respond to the following:
+
+1. Should the calculator app handle both mobile and desktop usage?
+2. Should there be a history of calculations displayed?
+3. How should input errors be handled? Should there be notifications or validations?  
+

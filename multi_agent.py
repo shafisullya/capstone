@@ -78,7 +78,7 @@ print(f"- {se_agent.name}")
 print(f"- {po_agent.name}")
 
 # --- Simple termination function instead of custom class to avoid Pydantic issues
-async def should_terminate_conversation(history, max_iterations=15):
+async def should_terminate_conversation(history, max_iterations=30):  # Increased from 15 to 30
     """Simple function to check termination conditions."""
     
     # Count messages to estimate iterations
@@ -228,12 +228,51 @@ async def run_multi_agent(input_text: str):
         print("Input text is empty. Please provide a valid prompt.")
         return
 
-    # Enhance the input to be more specific about HTML output
+    # Enhance the input to be more specific about HTML output and encourage discussion
     enhanced_input = f"""
 {input_text}
 
-IMPORTANT: Software Engineer must provide the complete HTML code (including CSS and JavaScript) wrapped in ```html code blocks.
-The HTML should be a complete, working web application that can be saved as index.html and opened in a browser.
+CRITICAL WORKFLOW REQUIREMENTS:
+1. Business Analyst: Analyze requirements and ask clarifying questions (2-3 exchanges)
+2. Product Owner: Define acceptance criteria and review requirements (2-3 exchanges)  
+3. Software Engineer: Discuss technical approach and implementation details (2-3 exchanges)
+4. ALL AGENTS: Have thorough discussion about the solution (at least 8-10 total exchanges)
+5. Software Engineer: MUST provide complete HTML code with CSS and JavaScript
+
+MANDATORY FINAL OUTPUT FORMAT:
+The Software Engineer MUST end with exactly this format:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Calculator App</title>
+    <style>
+        /* CSS styling here */
+    </style>
+</head>
+<body>
+    <!-- HTML structure here -->
+    <script>
+        /* JavaScript functionality here */
+    </script>
+</body>
+</html>
+```
+
+DISCUSSION POINTS REQUIRED:
+- What features should the calculator have?
+- What design/styling approach?
+- What JavaScript functionality is needed?
+- How should user interactions work?
+- What edge cases need handling?
+
+IMPORTANT: 
+- Have detailed back-and-forth discussion first
+- Software Engineer provides working HTML code last
+- Code must be complete and functional
+- Use ```html code blocks for the final implementation
 """
 
     try:
@@ -249,7 +288,7 @@ The HTML should be a complete, working web application that can be saved as inde
         
         # Add iteration counter for additional safety
         iteration_count = 0
-        max_display_iterations = 20  # Increased to allow more conversation
+        max_display_iterations = 50  # Increased from 20 to 50 to allow much more conversation
         
         try:
             async for content in group_chat.invoke():
@@ -263,88 +302,100 @@ The HTML should be a complete, working web application that can be saved as inde
                     f.write(f"Content: {content.content}\n")
                 print(f"🔍 Saved debug info to {debug_filename}")
                 
-                # More aggressive HTML detection
-                content_lower = content.content.lower()
-                has_html = any([
-                    "```html" in content_lower,
-                    "<!doctype html" in content_lower,
-                    "<html" in content_lower,
-                    "calculator" in content_lower and ("<div>" in content_lower or "<button>" in content_lower),
-                    "<script>" in content_lower,
-                    "<style>" in content_lower
-                ])
-                
-                if has_html:
-                    print("🎯 Found potential HTML code in current message! Processing immediately...")
+                # Don't check for HTML too early - let them discuss first
+                # Only start looking for HTML after iteration 5 (reduced from 10)
+                if iteration_count >= 5:
+                    # More aggressive HTML detection
+                    content_lower = content.content.lower()
+                    has_html = any([
+                        "```html" in content_lower,
+                        "<!doctype html" in content_lower,
+                        "<html" in content_lower and "lang=" in content_lower,
+                        "calculator" in content_lower and all(tag in content_lower for tag in ["<div>", "<button>", "<script>"]),
+                        "<script>" in content_lower and "<style>" in content_lower,
+                        "<head>" in content_lower and "<body>" in content_lower,
+                        "function" in content_lower and "<button" in content_lower and "calculator" in content_lower
+                    ])
                     
-                    # More comprehensive HTML extraction patterns
-                    html_patterns = [
-                        r'```html\s*(.*?)```',
-                        r'```HTML\s*(.*?)```',
-                        r'```\s*html\s*(.*?)```',
-                        r'```\s*(<!DOCTYPE.*?)```',
-                        r'```\s*(<html.*?</html>)\s*```',
-                        r'```\s*(.*?</html>)\s*```',
-                        r'(<!DOCTYPE html.*?</html>)',
-                        r'(<html[^>]*>.*?</html>)',
-                        r'```[^`]*?(<!DOCTYPE.*?</html>)[^`]*?```',
-                        r'```[^`]*?(<html.*?</html>)[^`]*?```'
-                    ]
-                    
-                    html_code = None
-                    for i, pattern in enumerate(html_patterns):
-                        matches = re.findall(pattern, content.content, re.DOTALL | re.IGNORECASE)
-                        if matches:
-                            # Take the longest match
-                            html_code = max(matches, key=len).strip()
-                            print(f"✅ Found HTML using pattern {i+1}: {pattern}")
-                            print(f"📄 HTML preview: {html_code[:300]}...")
-                            break
-                    
-                    if html_code and len(html_code) > 200:
-                        try:
-                            output_path = os.path.join(os.getcwd(), "index.html")
-                            
-                            # Force delete existing file
-                            if os.path.exists(output_path):
-                                os.remove(output_path)
-                                print(f"🗑️ Deleted existing index.html")
-                            
-                            # Write new HTML
-                            with open(output_path, "w", encoding="utf-8") as f:
-                                f.write(html_code)
-                            print(f"✅ NEW HTML code saved to: {output_path}")
-                            print(f"📁 File size: {len(html_code)} characters")
-                            
-                            # Verify file was written
-                            if os.path.exists(output_path):
-                                with open(output_path, "r", encoding="utf-8") as f:
-                                    saved_content = f.read()
-                                print(f"✅ Verified: File contains {len(saved_content)} characters")
-                            else:
-                                print("❌ Error: File was not created!")
-                                continue
-
-                            # 🚀 AUTO PUSH TO GITHUB
-                            print("🔄 Auto-pushing NEW HTML to GitHub...")
-                            await auto_push_to_github()
-
-                            # Open in browser
+                    if has_html:
+                        print("🎯 Found potential HTML code in current message! Processing immediately...")
+                        
+                        # More comprehensive HTML extraction patterns
+                        html_patterns = [
+                            r'```html\s*(<!DOCTYPE.*?</html>)\s*```',      # Complete HTML in code block
+                            r'```html\s*(.*?</html>)\s*```',               # HTML ending with </html>
+                            r'```HTML\s*(<!DOCTYPE.*?</html>)\s*```',      # Uppercase HTML
+                            r'```\s*html\s*(<!DOCTYPE.*?</html>)\s*```',   # HTML with spaces
+                            r'```\s*(<!DOCTYPE html.*?</html>)\s*```',     # DOCTYPE in any code block
+                            r'```[^`]*?(<!DOCTYPE html.*?</html>)[^`]*?```', # DOCTYPE anywhere in code block
+                            r'(<!DOCTYPE html.*?</html>)',                 # Raw HTML without code blocks
+                            r'```html\s*(.*?)\s*```',                      # Any HTML code block content
+                            r'```\s*(.*?calculator.*?</html>)\s*```',      # Calculator-specific content
+                        ]
+                        
+                        html_code = None
+                        for i, pattern in enumerate(html_patterns):
+                            matches = re.findall(pattern, content.content, re.DOTALL | re.IGNORECASE)
+                            if matches:
+                                # Take the longest match
+                                html_code = max(matches, key=len).strip()
+                                print(f"✅ Found HTML using pattern {i+1}: {pattern}")
+                                print(f"📄 HTML preview: {html_code[:300]}...")
+                                break
+                        
+                        if html_code and len(html_code) > 200:
                             try:
-                                webbrowser.open(f"file://{output_path}")
-                                print("🌐 Opened NEW HTML in browser!")
-                            except Exception as browser_error:
-                                print(f"⚠️ Could not open browser: {browser_error}")
-                            
-                            print("🎉 Successfully generated and saved new HTML!")
-                            return  # Exit early since we found and processed HTML
-                            
-                        except Exception as e:
-                            print(f"❌ Error saving HTML: {e}")
-                            import traceback
-                            traceback.print_exc()
-                    else:
-                        print(f"⚠️ HTML code too short or empty: {len(html_code) if html_code else 0} characters")
+                                output_path = os.path.join(os.getcwd(), "index.html")
+                                
+                                # Force delete existing file
+                                if os.path.exists(output_path):
+                                    os.remove(output_path)
+                                    print(f"🗑️ Deleted existing index.html")
+                                
+                                # Write new HTML
+                                with open(output_path, "w", encoding="utf-8") as f:
+                                    f.write(html_code)
+                                print(f"✅ NEW HTML code saved to: {output_path}")
+                                print(f"📁 File size: {len(html_code)} characters")
+                                
+                                # Verify file was written
+                                if os.path.exists(output_path):
+                                    with open(output_path, "r", encoding="utf-8") as f:
+                                        saved_content = f.read()
+                                    print(f"✅ Verified: File contains {len(saved_content)} characters")
+                                else:
+                                    print("❌ Error: File was not created!")
+                                    continue
+
+                                # 🚀 AUTO PUSH TO GITHUB
+                                print("🔄 Auto-pushing NEW HTML to GitHub...")
+                                await auto_push_to_github()
+
+                                # Open in browser
+                                try:
+                                    webbrowser.open(f"file://{output_path}")
+                                    print("🌐 Opened NEW HTML in browser!")
+                                except Exception as browser_error:
+                                    print(f"⚠️ Could not open browser: {browser_error}")
+                                
+                                print("🎉 Successfully generated and saved new HTML!")
+                                return  # Exit early since we found and processed HTML
+                                
+                            except Exception as e:
+                                print(f"❌ Error saving HTML: {e}")
+                                import traceback
+                                traceback.print_exc()
+                        else:
+                            print(f"⚠️ HTML code too short or empty: {len(html_code) if html_code else 0} characters")
+                
+                # If we've had enough discussion but no HTML, prompt for it
+                if iteration_count == 25 and not has_html:
+                    print("🔔 Prompting Software Engineer to provide HTML code...")
+                    html_prompt = ChatMessageContent(
+                        role=AuthorRole.USER,
+                        content="Software Engineer: Please provide the complete HTML code for the calculator now. Use ```html code blocks with DOCTYPE, head, style, body, and script sections."
+                    )
+                    await group_chat.add_chat_message(html_prompt)
                 
                 # Safety check to prevent endless display loops
                 if iteration_count >= max_display_iterations:
@@ -376,29 +427,45 @@ The HTML should be a complete, working web application that can be saved as inde
 
         # Final comprehensive search through all messages
         html_code = None
+        print("🔍 Performing comprehensive HTML search...")
+        
         for i, msg in enumerate(messages):
             if isinstance(msg, ChatMessageContent) and msg.role == AuthorRole.ASSISTANT:
                 content = msg.content
+                print(f"📄 Analyzing message {i+1}: {content[:100]}...")
                 
                 # Look for HTML in multiple ways
-                if any(indicator in content.lower() for indicator in ['html', 'doctype', '<div>', '<button>', 'calculator']):
-                    print(f"🔍 Checking message {i+1} for HTML content...")
+                html_indicators = [
+                    'html', 'doctype', '<div>', '<button>', 'calculator', 
+                    '<script>', '<style>', '<head>', '<body>', 'function'
+                ]
+                
+                if any(indicator in content.lower() for indicator in html_indicators):
+                    print(f"🔍 Found HTML indicators in message {i+1}")
                     
+                    # Comprehensive HTML extraction patterns
                     html_patterns = [
-                        r'```html\s*(.*?)```',
-                        r'```HTML\s*(.*?)```',
-                        r'```\s*html\s*(.*?)```',
+                        r'```html\s*(<!DOCTYPE.*?</html>)\s*```',
+                        r'```html\s*(.*?</html>)\s*```',
+                        r'```HTML\s*(<!DOCTYPE.*?</html>)\s*```',
+                        r'```\s*html\s*(<!DOCTYPE.*?</html>)\s*```',
+                        r'```\s*(<!DOCTYPE html.*?</html>)\s*```',
                         r'(<!DOCTYPE html.*?</html>)',
                         r'(<html.*?</html>)',
+                        r'```[^`]*?(<!DOCTYPE html.*?</html>)[^`]*?```',
+                        r'```[^`]*?(<html.*?</html>)[^`]*?```',
+                        r'```html\s*(.*?)\s*```'  # Any HTML code block
                     ]
                     
-                    for pattern in html_patterns:
-                        match = re.search(pattern, content, re.DOTALL | re.IGNORECASE)
-                        if match:
-                            candidate = match.group(1).strip()
+                    for j, pattern in enumerate(html_patterns):
+                        matches = re.findall(pattern, content, re.DOTALL | re.IGNORECASE)
+                        if matches:
+                            # Take the longest match
+                            candidate = max(matches, key=len).strip()
                             if len(candidate) > 200:  # Ensure substantial content
                                 html_code = candidate
-                                print(f"✅ Found HTML code in message {i+1}")
+                                print(f"✅ Found HTML code using pattern {j+1} in message {i+1}")
+                                print(f"📄 HTML preview: {html_code[:200]}...")
                                 break
                     
                     if html_code:
@@ -434,6 +501,95 @@ The HTML should be a complete, working web application that can be saved as inde
         else:
             print("❌ No HTML code found in any agent responses.")
             print("🔍 The agents may have discussed the project but didn't provide actual HTML code.")
+            
+            # Try one more time with a direct request
+            print("🔔 Making a direct request for HTML code...")
+            try:
+                direct_html_request = ChatMessageContent(
+                    role=AuthorRole.USER,
+                    content="""
+Software Engineer: Please provide the complete HTML code for the calculator application now. 
+
+REQUIRED FORMAT:
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Calculator</title>
+    <style>
+        /* Add CSS styling here */
+    </style>
+</head>
+<body>
+    <!-- Add calculator HTML structure here -->
+    <script>
+        /* Add JavaScript functionality here */
+    </script>
+</body>
+</html>
+```
+
+Please provide working calculator code with buttons for 0-9, +, -, *, /, =, and clear.
+"""
+                )
+                await group_chat.add_chat_message(direct_html_request)
+                
+                # Get one more response
+                print("🔄 Waiting for HTML response...")
+                final_responses = []
+                async for final_content in group_chat.invoke():
+                    print(f"# {final_content.role}: '{final_content.content}'")
+                    final_responses.append(final_content)
+                    
+                    # Check this final response for HTML
+                    if ("```html" in final_content.content.lower() or 
+                        "<!doctype html" in final_content.content.lower()):
+                        
+                        # Try to extract HTML from this final response
+                        for pattern in [
+                            r'```html\s*(.*?)\s*```',
+                            r'```HTML\s*(.*?)\s*```',
+                            r'```\s*html\s*(.*?)\s*```',
+                            r'(<!DOCTYPE html.*?</html>)',
+                            r'(<html.*?</html>)'
+                        ]:
+                            matches = re.findall(pattern, final_content.content, re.DOTALL | re.IGNORECASE)
+                            if matches:
+                                final_html = max(matches, key=len).strip()
+                                if len(final_html) > 100:
+                                    print("✅ Found HTML in final response!")
+                                    
+                                    # Save the HTML
+                                    output_path = os.path.join(os.getcwd(), "index.html")
+                                    if os.path.exists(output_path):
+                                        os.remove(output_path)
+                                        print(f"🗑️ Deleted existing index.html")
+                                    
+                                    with open(output_path, "w", encoding="utf-8") as f:
+                                        f.write(final_html)
+                                    print(f"✅ Final HTML saved to: {output_path}")
+                                    
+                                    # Push to GitHub
+                                    await auto_push_to_github()
+                                    
+                                    # Open in browser
+                                    try:
+                                        webbrowser.open(f"file://{output_path}")
+                                        print("🌐 Opened in browser!")
+                                    except Exception as browser_error:
+                                        print(f"⚠️ Could not open browser: {browser_error}")
+                                    
+                                    print("🎉 Successfully generated HTML from final request!")
+                                    return messages
+                                break
+                    
+                    # Only process one response to avoid infinite loop
+                    break
+                    
+            except Exception as e:
+                print(f"❌ Error in direct HTML request: {str(e)}")
+            
             print("💡 Try a more specific prompt like: 'Create a calculator web app with complete HTML, CSS and JavaScript code'")
 
         print("🏁 Multi-agent workflow completed successfully!")

@@ -1,0 +1,12 @@
+Role: AuthorRole.ASSISTANT
+Content: Let me answer those questions to move forward with app development requirements:
+
+1. **Features:** The calculator should primarily support **basic operations**: addition, subtraction, multiplication, and division. Advanced functions like square root, percentage, and memory (M+, M-) are appreciated but not mandatory. Just stick with functional basics.
+
+2. **Design and Styling:** A **minimalist design** is preferred. Clean layout, light theme (white background), clear buttons, and modern fonts. It should be intuitive and easy for all age groups to use.
+
+3. **User Interaction:** The calculator should work via **button clicks**, and if possible, **keyboard input** (e.g., typing numbers and pressing the Enter key to get results).
+
+4. **Edge Cases:** Handle **'division by zero'** gracefully (return an error message instead of crashing). For large numbers, ensure readable results (use scientific notation if necessary).
+
+Let’s build this as a simple, usable app first. Thank you!
