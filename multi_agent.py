@@ -5,6 +5,8 @@ import subprocess
 from dotenv import load_dotenv
 import webbrowser
 import platform
+import time      # Add this line
+import shutil    # Add this line
 
 # Load environment variables from .env file
 load_dotenv()
@@ -158,80 +160,191 @@ async def on_approved_callback():
 async def auto_push_to_github():
     """Automatically push generated files to GitHub."""
     print("🤖 Auto-pushing generated files to GitHub...")
+    
     try:
-        # Check if we're on Windows and use appropriate shell
-        if platform.system() == 'Windows':
-            # For Windows, try different approaches
-            try:
-                # Try with Git Bash
-                result = subprocess.run(
-                    ["bash", "./push_to_github.sh"],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                    cwd=os.getcwd()
-                )
-            except FileNotFoundError:
-                # Fallback to direct execution
-                result = subprocess.run(
-                    ["./push_to_github.sh"],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                    cwd=os.getcwd(),
-                    shell=True
-                )
-        else:
-            # For Unix/Linux systems
-            result = subprocess.run(
-                ["./push_to_github.sh"],
-                capture_output=True,
-                text=True,
-                check=True,
-                cwd=os.getcwd()
-            )
+        # Use direct git commands instead of shell script
+        print("🔄 Adding files to git...")
+        add_result = subprocess.run(["git", "add", "."], check=True, cwd=os.getcwd())
+        print("✅ Files added to git")
         
-        print("✅ Auto-push to GitHub successful!")
-        if result.stdout:
-            print(result.stdout)
+        # Check if there are changes to commit
+        diff_result = subprocess.run(["git", "diff", "--staged", "--quiet"], cwd=os.getcwd())
+        if diff_result.returncode == 0:
+            print("ℹ️ No changes to commit")
+            return
+        
+        # Show what will be committed
+        print("📋 Changes to be committed:")
+        subprocess.run(["git", "status", "--short"], cwd=os.getcwd())
+        
+        # Commit changes
+        commit_msg = f"Update index.html - {time.strftime('%Y-%m-%d %H:%M:%S')}"
+        print(f"💾 Committing with message: '{commit_msg}'")
+        commit_result = subprocess.run(["git", "commit", "-m", commit_msg], check=True, cwd=os.getcwd())
+        print("✅ Changes committed")
+        
+        # Push to remote
+        print("🚀 Pushing to GitHub...")
+        push_result = subprocess.run(["git", "push"], capture_output=True, text=True, check=True, cwd=os.getcwd())
+        print("✅ Successfully pushed to GitHub!")
+        
+        if push_result.stdout:
+            print("📤 Push output:")
+            print(push_result.stdout)
+        
+        if push_result.stderr:
+            print("📤 Push messages:")
+            print(push_result.stderr)
             
+        # Show latest commit
+        print("📊 Latest commit:")
+        subprocess.run(["git", "log", "--oneline", "-1"], cwd=os.getcwd())
+        
+        # Verify final status
+        print("🔍 Final git status:")
+        subprocess.run(["git", "status", "--short"], cwd=os.getcwd())
+        
     except subprocess.CalledProcessError as e:
-        print("⚠️ Auto-push to GitHub failed:")
-        if e.stderr:
-            print(f"Error output: {e.stderr}")
-        if e.stdout:
-            print(f"Standard output: {e.stdout}")
-        print(f"Return code: {e.returncode}")
-        print("💡 You can manually push later using: ./push_to_github.sh")
+        print(f"❌ Git command failed: {str(e)}")
+        if hasattr(e, 'stderr') and e.stderr:
+            print(f"Error details: {e.stderr}")
+        if hasattr(e, 'stdout') and e.stdout:
+            print(f"Output: {e.stdout}")
+        
+        # Show current status for debugging
+        print("🔍 Current git status:")
+        subprocess.run(["git", "status"], cwd=os.getcwd())
+        
     except Exception as e:
-        print(f"⚠️ Unexpected error during auto-push: {str(e)}")
-        print("💡 You can manually push later using: ./push_to_github.sh")
+        print(f"❌ Unexpected error during git push: {str(e)}")
+        
+        # Show current status for debugging
+        print("🔍 Current git status:")
+        subprocess.run(["git", "status"], cwd=os.getcwd())
 
-# --- Main agent system runner with proper cleanup
+# --- Main agent system runner with better HTML extraction
 async def run_multi_agent(input_text: str):
     if not input_text.strip():
         print("Input text is empty. Please provide a valid prompt.")
         return
 
+    # Enhance the input to be more specific about HTML output
+    enhanced_input = f"""
+{input_text}
+
+IMPORTANT: Software Engineer must provide the complete HTML code (including CSS and JavaScript) wrapped in ```html code blocks.
+The HTML should be a complete, working web application that can be saved as index.html and opened in a browser.
+"""
+
     try:
         # Add user message to kick off the conversation
         user_message = ChatMessageContent(
             role=AuthorRole.USER,
-            content=input_text
+            content=enhanced_input
         )
         await group_chat.add_chat_message(user_message)
-        print("Added initial user message to chat history.")
+        print("Added enhanced user message to chat history.")
 
         print("Streaming responses as they arrive...")
         
         # Add iteration counter for additional safety
         iteration_count = 0
-        max_display_iterations = 15  # Reduced for better control
+        max_display_iterations = 20  # Increased to allow more conversation
         
         try:
             async for content in group_chat.invoke():
                 print(f"# {content.role}: '{content.content}'")
                 iteration_count += 1
+                
+                # DEBUG: Save each message to see what we're getting
+                debug_filename = f"debug_msg_{iteration_count}.txt"
+                with open(debug_filename, "w", encoding="utf-8") as f:
+                    f.write(f"Role: {content.role}\n")
+                    f.write(f"Content: {content.content}\n")
+                print(f"🔍 Saved debug info to {debug_filename}")
+                
+                # More aggressive HTML detection
+                content_lower = content.content.lower()
+                has_html = any([
+                    "```html" in content_lower,
+                    "<!doctype html" in content_lower,
+                    "<html" in content_lower,
+                    "calculator" in content_lower and ("<div>" in content_lower or "<button>" in content_lower),
+                    "<script>" in content_lower,
+                    "<style>" in content_lower
+                ])
+                
+                if has_html:
+                    print("🎯 Found potential HTML code in current message! Processing immediately...")
+                    
+                    # More comprehensive HTML extraction patterns
+                    html_patterns = [
+                        r'```html\s*(.*?)```',
+                        r'```HTML\s*(.*?)```',
+                        r'```\s*html\s*(.*?)```',
+                        r'```\s*(<!DOCTYPE.*?)```',
+                        r'```\s*(<html.*?</html>)\s*```',
+                        r'```\s*(.*?</html>)\s*```',
+                        r'(<!DOCTYPE html.*?</html>)',
+                        r'(<html[^>]*>.*?</html>)',
+                        r'```[^`]*?(<!DOCTYPE.*?</html>)[^`]*?```',
+                        r'```[^`]*?(<html.*?</html>)[^`]*?```'
+                    ]
+                    
+                    html_code = None
+                    for i, pattern in enumerate(html_patterns):
+                        matches = re.findall(pattern, content.content, re.DOTALL | re.IGNORECASE)
+                        if matches:
+                            # Take the longest match
+                            html_code = max(matches, key=len).strip()
+                            print(f"✅ Found HTML using pattern {i+1}: {pattern}")
+                            print(f"📄 HTML preview: {html_code[:300]}...")
+                            break
+                    
+                    if html_code and len(html_code) > 200:
+                        try:
+                            output_path = os.path.join(os.getcwd(), "index.html")
+                            
+                            # Force delete existing file
+                            if os.path.exists(output_path):
+                                os.remove(output_path)
+                                print(f"🗑️ Deleted existing index.html")
+                            
+                            # Write new HTML
+                            with open(output_path, "w", encoding="utf-8") as f:
+                                f.write(html_code)
+                            print(f"✅ NEW HTML code saved to: {output_path}")
+                            print(f"📁 File size: {len(html_code)} characters")
+                            
+                            # Verify file was written
+                            if os.path.exists(output_path):
+                                with open(output_path, "r", encoding="utf-8") as f:
+                                    saved_content = f.read()
+                                print(f"✅ Verified: File contains {len(saved_content)} characters")
+                            else:
+                                print("❌ Error: File was not created!")
+                                continue
+
+                            # 🚀 AUTO PUSH TO GITHUB
+                            print("🔄 Auto-pushing NEW HTML to GitHub...")
+                            await auto_push_to_github()
+
+                            # Open in browser
+                            try:
+                                webbrowser.open(f"file://{output_path}")
+                                print("🌐 Opened NEW HTML in browser!")
+                            except Exception as browser_error:
+                                print(f"⚠️ Could not open browser: {browser_error}")
+                            
+                            print("🎉 Successfully generated and saved new HTML!")
+                            return  # Exit early since we found and processed HTML
+                            
+                        except Exception as e:
+                            print(f"❌ Error saving HTML: {e}")
+                            import traceback
+                            traceback.print_exc()
+                    else:
+                        print(f"⚠️ HTML code too short or empty: {len(html_code) if html_code else 0} characters")
                 
                 # Safety check to prevent endless display loops
                 if iteration_count >= max_display_iterations:
@@ -242,171 +355,86 @@ async def run_multi_agent(input_text: str):
             print(f"⚠️ Group chat iteration completed or interrupted: {str(e)}")
             print("🔄 Proceeding with message processing...")
 
-        # Retrieve the final chat history - handle async generator properly
-        print("📊 Retrieving messages from chat history...")
+        # If we reach here, no HTML was found during streaming
+        print("⚠️ No HTML found during conversation streaming.")
+        print("🔍 Searching through final message history...")
+        
+        # Retrieve the final chat history for a final search
         messages = []
         try:
-            # Convert async generator to list
             chat_messages = group_chat.get_chat_messages()
             if hasattr(chat_messages, '__aiter__'):
-                # It's an async generator
                 async for msg in chat_messages:
                     messages.append(msg)
             else:
-                # It's already a list or iterable
                 messages = list(chat_messages)
         except Exception as e:
             print(f"⚠️ Error retrieving chat messages: {str(e)}")
-            print("🔄 Continuing with empty message list...")
             messages = []
         
         print(f"📊 Retrieved {len(messages)} messages from chat history.")
 
-        # 1️⃣ Check if the Product Owner says "READY FOR USER APPROVAL"
-        approval_requested = False
-        for msg in messages:
-            if (
-                isinstance(msg, ChatMessageContent) and
-                msg.role == AuthorRole.ASSISTANT and
-                "READY FOR USER APPROVAL" in msg.content.upper()
-            ):
-                approval_requested = True
-                print("📝 The Product Owner says 'READY FOR USER APPROVAL'.")
-                print("💡 Type 'APPROVED' to finalize, 'SKIP' to terminate without approval, or anything else to cancel.")
-                
-                try:
-                    user_input = input("Your response: ").strip().upper()
-                    
-                    if user_input == "APPROVED":
-                        final_user_message = ChatMessageContent(
-                            role=AuthorRole.USER,
-                            content="APPROVED"
-                        )
-                        await group_chat.add_chat_message(final_user_message)
-                        print("✅ Final user approval added.")
-                    elif user_input == "SKIP":
-                        print("⚠️ User chose to skip approval. Proceeding with HTML extraction only.")
-                        break
-                    else:
-                        print("⚠️ Approval not given. Proceeding with HTML extraction only.")
-                        break
-                        
-                except (KeyboardInterrupt, EOFError):
-                    print("\n⚠️ User interrupted. Proceeding with HTML extraction only.")
-                    break
-                break
-
-        # 2️⃣ Check if the final "APPROVED" is in the chat history
-        # Re-fetch messages after potential approval
-        if approval_requested:
-            print("🔄 Re-fetching messages after potential approval...")
-            try:
-                chat_messages = group_chat.get_chat_messages()
-                if hasattr(chat_messages, '__aiter__'):
-                    messages = []
-                    async for msg in chat_messages:
-                        messages.append(msg)
-                else:
-                    messages = list(chat_messages)
-            except Exception as e:
-                print(f"⚠️ Error re-fetching messages: {str(e)}")
-
-        user_approved = False
-        for msg in messages:
-            if (
-                isinstance(msg, ChatMessageContent) and
-                msg.role == AuthorRole.USER and
-                "APPROVED" in msg.content.upper()
-            ):
-                user_approved = True
-                print("✅ User approval confirmed in chat history.")
-                await on_approved_callback()
-                break
-
-        if not user_approved and approval_requested:
-            print("ℹ️ No final approval given. Skipping GitHub push.")
-
-        # 3️⃣ Extract HTML code from Software Engineer's messages
+        # Final comprehensive search through all messages
         html_code = None
-        print(f"🔍 Searching through {len(messages)} messages for HTML code...")
-
         for i, msg in enumerate(messages):
             if isinstance(msg, ChatMessageContent) and msg.role == AuthorRole.ASSISTANT:
-                author_name = getattr(msg, "author_name", "Unknown")
-                print(f"📄 Message {i+1}: Author={author_name}, Content preview: {msg.content[:100]}...")
-
-                # Check if this is from SoftwareEngineer or contains HTML
-                if (author_name == "SoftwareEngineer" or "html" in msg.content.lower()):
-                    print(f"🎯 Found potential HTML message from {author_name}")
-
-                    # Try multiple HTML extraction patterns
-                    patterns = [
-                        r"```html\s*(.*?)```",           # Standard ```html block
-                        r"```HTML\s*(.*?)```",           # Uppercase HTML
-                        r"```\s*html\s*(.*?)```",        # html with spaces
-                        r"```\s*(<!DOCTYPE html.*?)```", # HTML starting with DOCTYPE
-                        r"```\s*(<html.*?</html>)```",   # HTML tags
-                        r"```\s*(.*?)</html>\s*```"      # Content ending with </html>
+                content = msg.content
+                
+                # Look for HTML in multiple ways
+                if any(indicator in content.lower() for indicator in ['html', 'doctype', '<div>', '<button>', 'calculator']):
+                    print(f"🔍 Checking message {i+1} for HTML content...")
+                    
+                    html_patterns = [
+                        r'```html\s*(.*?)```',
+                        r'```HTML\s*(.*?)```',
+                        r'```\s*html\s*(.*?)```',
+                        r'(<!DOCTYPE html.*?</html>)',
+                        r'(<html.*?</html>)',
                     ]
-
-                    for pattern in patterns:
-                        match = re.search(pattern, msg.content, re.DOTALL | re.IGNORECASE)
+                    
+                    for pattern in html_patterns:
+                        match = re.search(pattern, content, re.DOTALL | re.IGNORECASE)
                         if match:
-                            html_code = match.group(1).strip()
-                            print(f"✅ Extracted HTML using pattern: {pattern}")
-                            print(f"📄 HTML preview: {html_code[:200]}...")
-                            break
-
+                            candidate = match.group(1).strip()
+                            if len(candidate) > 200:  # Ensure substantial content
+                                html_code = candidate
+                                print(f"✅ Found HTML code in message {i+1}")
+                                break
+                    
                     if html_code:
                         break
 
         if html_code:
             try:
                 output_path = os.path.join(os.getcwd(), "index.html")
+                
+                # Delete existing file instead of backing up
+                if os.path.exists(output_path):
+                    os.remove(output_path)
+                    print(f"🗑️ Deleted existing index.html")
+                
                 with open(output_path, "w", encoding="utf-8") as f:
                     f.write(html_code)
                 print(f"✅ HTML code saved to: {output_path}")
                 print(f"📁 File size: {len(html_code)} characters")
 
-                # Try to open in browser
+                # 🚀 AUTO PUSH TO GITHUB
+                print("🔄 Auto-pushing generated HTML to GitHub...")
+                await auto_push_to_github()
+
+                # Open in browser
                 try:
                     webbrowser.open(f"file://{output_path}")
-                    print("🌐 Opened in default browser!")
+                    print("🌐 Opened in browser!")
                 except Exception as browser_error:
                     print(f"⚠️ Could not open browser: {browser_error}")
+                    
             except Exception as e:
-                print(f"❌ Error writing to index.html: {e}")
+                print(f"❌ Error writing HTML: {e}")
         else:
-            print("⚠️ No HTML code block found from any agent.")
-            print("💡 Try asking the Software Engineer to provide HTML code in a ```html code block.")
-
-            # 🔧 Fallback: Look for any HTML-like content (even without code blocks)
-            if messages:  # Only try fallback if we have messages
-                print("🔍 Searching for HTML-like content as fallback...")
-                for i, msg in enumerate(messages):
-                    if isinstance(msg, ChatMessageContent) and msg.role == AuthorRole.ASSISTANT:
-                        content = msg.content.lower()
-                        if any(tag in content for tag in ["<html", "<!doctype", "<head", "<body"]):
-                            print(f"📄 Found HTML-like content in message {i+1}")
-                            # Extract potential HTML content
-                            html_match = re.search(r'(<!DOCTYPE.*?</html>|<html.*?</html>)', msg.content, re.DOTALL | re.IGNORECASE)
-                            if html_match:
-                                fallback_html = html_match.group(1).strip()
-                                try:
-                                    output_path = os.path.join(os.getcwd(), "index.html")
-                                    with open(output_path, "w", encoding="utf-8") as f:
-                                        f.write(fallback_html)
-                                    print(f"✅ Fallback HTML saved to: {output_path}")
-                                    print(f"📁 File size: {len(fallback_html)} characters")
-
-                                    try:
-                                        webbrowser.open(f"file://{output_path}")
-                                        print("🌐 Opened in default browser!")
-                                    except Exception as browser_error:
-                                        print(f"⚠️ Could not open browser: {browser_error}")
-                                    break
-                                except Exception as e:
-                                    print(f"❌ Error writing fallback HTML: {e}")
+            print("❌ No HTML code found in any agent responses.")
+            print("🔍 The agents may have discussed the project but didn't provide actual HTML code.")
+            print("💡 Try a more specific prompt like: 'Create a calculator web app with complete HTML, CSS and JavaScript code'")
 
         print("🏁 Multi-agent workflow completed successfully!")
         return messages
@@ -415,8 +443,7 @@ async def run_multi_agent(input_text: str):
         print(f"❌ Error in run_multi_agent: {str(e)}")
         return []
     finally:
-        # Ensure proper cleanup
-        await asyncio.sleep(0.1)  # Small delay to allow cleanup
+        await asyncio.sleep(0.1)
 
 # --- Async main function with proper cleanup
 async def main():
