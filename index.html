@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visitor Check-in Form</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .form-container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 100%;
+        }
+        h1 {
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            margin-bottom: 5px;
+            display: block;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+        .btn-submit {
+            width: 100%;
+            padding: 10px;
+            background: #007bff;
+            border: none;
+            color: white;
+            font-size: 1em;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-submit:hover {
+            background: #0056b3;
+        }
+        .error {
+            color: red;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h1>Visitor Check-in</h1>
+        <form id="visitorForm">
+            <div class="form-group">
+                <label for="fullName">Full Name:</label>
+                <input type="text" id="fullName" name="fullName" placeholder="Enter your full name" required>
+                <div class="error" id="nameError"></div>
+            </div>
+            <div class="form-group">
+                <label for="phoneNumber">Phone Number:</label>
+                <input type="text" id="phoneNumber" name="phoneNumber" placeholder="Enter phone number" required>
+                <div class="error" id="phoneError"></div>
+            </div>
+            <div class="form-group">
+                <label for="email">Email Address:</label>
+                <input type="email" id="email" name="email" placeholder="Enter your email" required>
+                <div class="error" id="emailError"></div>
+            </div>
+            <div class="form-group">
+                <label for="purpose">Purpose of Visit:</label>
+                <input type="text" id="purpose" name="purpose" placeholder="E.g. Interview, Meeting">
+            </div>
+            <div class="form-group">
+                <label for="hostName">Host Name:</label>
+                <select id="hostName" name="hostName" required>
+                    <option value="">Select Host</option>
+                    <option value="John Doe">John Doe</option>
+                    <option value="Jane Smith">Jane Smith</option>
+                </select>
+                <div class="error" id="hostError"></div>
+            </div>
+            <button type="submit" class="btn-submit">Check In</button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('visitorForm').addEventListener('submit', function(e) {
+            // Prevent form submission
+            e.preventDefault();
+
+            // Clear previous errors
+            document.getElementById('nameError').textContent = '';
+            document.getElementById('phoneError').textContent = '';
+            document.getElementById('emailError').textContent = '';
+            document.getElementById('hostError').textContent = '';
+
+            // Form validation
+            let valid = true;
+
+            const name = document.getElementById('fullName').value.trim();
+            const phone = document.getElementById('phoneNumber').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const host = document.getElementById('hostName').value;
+
+            // Name validation
+            if (name === '') {
+                valid = false;
+                document.getElementById('nameError').textContent = 'Name is required.';
+            }
+
+            // Phone validation
+            const phoneRegex = /^[0-9]{10}$/;
+            if (!phoneRegex.test(phone)) {
+                valid = false;
+                document.getElementById('phoneError').textContent = 'Enter a valid 10-digit phone number.';
+            }
+
+            // Email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                valid = false;
+                document.getElementById('emailError').textContent = 'Enter a valid email address.';
+            }
+
+            // Host validation
+            if (host === '') {
+                valid = false;
+                document.getElementById('hostError').textContent = 'Please select a host.';
+            }
+
+            // If valid, submit the form
+            if (valid) {
+                alert('Check-in successful!');
+                // Here you could send the data to the backend or clear the form
+                document.getElementById('visitorForm').reset();
+            }
+        });
+    </script>
+</body>
+</html>
