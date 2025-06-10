@@ -1,11 +1,16 @@
 Role: AuthorRole.ASSISTANT
-Content: ### Business Analyst: Initial Inquiry and Requirements Clarification  
+Content: ### Step 1: Business Analyst Gathering Requirements
 
-**BA:** Hello, thank you for presenting the requirements! To ensure the app meets your needs, could you clarify:
-1. What type of tracking is preferred? For example, GPS-based, manual input, or integration with fitness devices?
-2. Do you require specific activity data such as distance, duration, speed, or calories burned per activity?
-3. How would you want this data displayed? (e.g., graphs, totals, summaries, historical logs)
-4. Are user accounts and data synchronization features required to support tracking across multiple devices?
-5. Do you envision desired extra features like goal setting, reminders, or social sharing?
+**Business Analyst:** Thank you for your request. I understand you're looking for an app to order the best wet wipes that can substitute for bathing, specifically targeted for elderly users. To better understand and deliver your expectations, I have a few questions:
 
-### User Response
+1. Should the app allow users to compare different wet wipe brands, or will it focus solely on selling a pre-approved "best option"?
+2. Do you want the app to include features like subscription services (e.g., recurring orders) or just one-time purchases?
+3. Since the app is designed for elderly users, do you have specific accessibility requirements, such as larger fonts, simple navigation, or voice assistance compatibility?
+
+Your input will help us create a tailored solution!
+
+---
+
+### Step 2: User Responses (You can provide clarifications now)
+
+
